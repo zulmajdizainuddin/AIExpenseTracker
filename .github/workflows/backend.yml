@@ -1,0 +1,90 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths: [backend/**]
+  pull_request:
+    branches: [main, develop]
+    paths: [backend/**]
+
+jobs:
+  test:
+    name: Laravel Tests
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: expense_tracker_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo, pdo_mysql, xml, zip
+          coverage: none
+
+      - name: Install Composer dependencies
+        working-directory: backend
+        run: composer install --prefer-dist --no-progress
+
+      - name: Copy .env
+        working-directory: backend
+        run: cp .env.testing .env
+
+      - name: Generate key
+        working-directory: backend
+        run: php artisan key:generate
+
+      - name: Run migrations
+        working-directory: backend
+        run: php artisan migrate --force
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: expense_tracker_test
+          DB_USERNAME: root
+          DB_PASSWORD: root
+
+      - name: Run Tests
+        working-directory: backend
+        run: php artisan test --parallel
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: expense_tracker_test
+          DB_USERNAME: root
+          DB_PASSWORD: root
+
+  lint:
+    name: PHP Code Style
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+
+      - name: Install Composer dependencies
+        working-directory: backend
+        run: composer install --prefer-dist --no-progress
+
+      - name: Run Pint
+        working-directory: backend
+        run: ./vendor/bin/pint
