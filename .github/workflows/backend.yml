@@ -61,7 +61,7 @@ jobs:
 
       - name: Run Tests
         working-directory: backend
-        run: php artisan test --parallel
+        run: php artisan test
         env:
           DB_CONNECTION: mysql
           DB_HOST: 127.0.0.1
