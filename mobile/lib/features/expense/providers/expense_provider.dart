@@ -6,6 +6,10 @@ final categoriesProvider = FutureProvider<List<CategoryModel>>((ref) {
   return ref.watch(expenseRepositoryProvider).getCategories();
 });
 
+final searchExpensesProvider = FutureProvider.autoDispose.family<List<ExpenseModel>, String>((ref, query) {
+  return ref.watch(expenseRepositoryProvider).getExpenses(search: query);
+});
+
 final expenseListProvider = AsyncNotifierProvider<ExpenseListNotifier, List<ExpenseModel>>(
   ExpenseListNotifier.new,
 );

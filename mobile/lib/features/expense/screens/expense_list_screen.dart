@@ -18,7 +18,7 @@ class ExpenseListScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
-            onPressed: () => showSearch(context: context, delegate: _ExpenseSearchDelegate(ref)),
+            onPressed: () => showSearch(context: context, delegate: _ExpenseSearchDelegate()),
           ),
         ],
       ),
@@ -120,9 +120,6 @@ class _ExpenseCard extends ConsumerWidget {
 }
 
 class _ExpenseSearchDelegate extends SearchDelegate<String> {
-  _ExpenseSearchDelegate(this.ref);
-  final WidgetRef ref;
-
   @override
   List<Widget> buildActions(BuildContext context) => [
         IconButton(icon: const Icon(Icons.clear), onPressed: () => query = ''),
@@ -133,8 +130,31 @@ class _ExpenseSearchDelegate extends SearchDelegate<String> {
       IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => close(context, ''));
 
   @override
-  Widget buildResults(BuildContext context) => const SizedBox.shrink();
+  Widget buildResults(BuildContext context) => _buildSearchResults(context);
 
   @override
-  Widget buildSuggestions(BuildContext context) => const SizedBox.shrink();
+  Widget buildSuggestions(BuildContext context) => _buildSearchResults(context);
+
+  Widget _buildSearchResults(BuildContext context) {
+    if (query.isEmpty) return const SizedBox.shrink();
+
+    return Consumer(
+      builder: (context, ref, _) {
+        final results = ref.watch(searchExpensesProvider(query));
+
+        return results.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Search failed: $e')),
+          data: (expenses) => expenses.isEmpty
+              ? const Center(child: Text('No expenses found'))
+              : ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: expenses.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, i) => _ExpenseCard(expense: expenses[i]),
+                ),
+        );
+      },
+    );
+  }
 }
