@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -34,5 +35,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $exceptions->render(function (NotFoundHttpException $e) {
             return response()->json(['success' => false, 'message' => 'Resource not found.'], 404);
+        });
+
+        $exceptions->render(function (AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage() ?: 'This action is unauthorized.',
+            ], $e->hasStatus() ? $e->status() : 403);
         });
     })->create();

@@ -6,7 +6,6 @@ use App\Models\Expense;
 use App\Models\User;
 use App\Repositories\Contracts\ExpenseRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class ExpenseService
 {
@@ -31,10 +30,8 @@ class ExpenseService
         ]);
     }
 
-    public function update(User $user, int $expenseId, array $data): Expense
+    public function update(Expense $expense, array $data): Expense
     {
-        $expense = $this->findOwnedByUser($user, $expenseId);
-
         $this->expenseRepository->update($expense, array_filter([
             'category_id'      => $data['category_id'] ?? null,
             'title'            => $data['title'] ?? null,
@@ -46,25 +43,13 @@ class ExpenseService
         return $expense->fresh(['category']);
     }
 
-    public function delete(User $user, int $expenseId): void
+    public function delete(Expense $expense): void
     {
-        $expense = $this->findOwnedByUser($user, $expenseId);
         $this->expenseRepository->delete($expense);
     }
 
-    public function show(User $user, int $expenseId): Expense
+    public function show(Expense $expense): Expense
     {
-        return $this->findOwnedByUser($user, $expenseId);
-    }
-
-    private function findOwnedByUser(User $user, int $expenseId): Expense
-    {
-        $expense = $this->expenseRepository->findById($expenseId);
-
-        if (! $expense || $expense->user_id !== $user->id) {
-            throw new ModelNotFoundException('Expense not found.');
-        }
-
-        return $expense;
+        return $expense->load('category', 'receipt');
     }
 }
