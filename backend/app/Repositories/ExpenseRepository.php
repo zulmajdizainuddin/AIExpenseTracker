@@ -24,7 +24,8 @@ class ExpenseRepository implements ExpenseRepositoryInterface
         }
 
         if (! empty($filters['search'])) {
-            $query->where('title', 'like', '%' . $filters['search'] . '%');
+            $escaped = addcslashes($filters['search'], '\\%_');
+            $query->where('title', 'like', '%' . $escaped . '%');
         }
 
         return $query->paginate($filters['per_page'] ?? 15);
