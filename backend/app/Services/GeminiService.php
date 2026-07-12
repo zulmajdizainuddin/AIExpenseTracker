@@ -22,9 +22,10 @@ class GeminiService
         Example: {"merchant_name":"ABC Store","amount":25.50,"date":"2024-01-15","category":"Shopping"}
         PROMPT;
 
-    public function __construct(
-        private readonly string $apiKey = ''
-    ) {
+    private readonly string $apiKey;
+
+    public function __construct()
+    {
         $this->apiKey = config('services.gemini.key');
     }
 
@@ -60,7 +61,13 @@ class GeminiService
 
             if ($response->failed()) {
                 Log::error('Gemini API error', ['status' => $response->status(), 'body' => $response->body()]);
-                throw new RuntimeException('AI service unavailable.');
+
+                throw new RuntimeException(match (true) {
+                    in_array($response->status(), [401, 403], true) => 'Gemini API key is invalid or expired.',
+                    $response->status() === 429 => 'Gemini API rate limit exceeded. Please try again later.',
+                    in_array($response->status(), [500, 502, 503, 504], true) => 'Gemini API is temporarily unavailable. Please try again.',
+                    default => "Gemini API returned an error (status {$response->status()}).",
+                });
             }
 
             return $response->json();
