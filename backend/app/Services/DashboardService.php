@@ -4,23 +4,33 @@ namespace App\Services;
 
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class DashboardService
 {
+    private const CACHE_TTL_SECONDS = 300;
+
     public function getSummary(User $user): array
     {
-        $now   = Carbon::now();
-        $year  = $now->year;
-        $month = $now->month;
+        return Cache::remember(self::cacheKey($user->id), self::CACHE_TTL_SECONDS, function () use ($user) {
+            $now   = Carbon::now();
+            $year  = $now->year;
+            $month = $now->month;
 
-        return [
-            'current_month' => $this->getMonthSummary($user, $year, $month),
-            'previous_month' => $this->getMonthSummary($user, $now->copy()->subMonth()->year, $now->copy()->subMonth()->month),
-            'category_breakdown' => $this->getCategoryBreakdown($user, $year, $month),
-            'weekly_trend'       => $this->getWeeklyTrend($user),
-            'top_categories'     => $this->getTopCategories($user, $year, $month),
-        ];
+            return [
+                'current_month' => $this->getMonthSummary($user, $year, $month),
+                'previous_month' => $this->getMonthSummary($user, $now->copy()->subMonth()->year, $now->copy()->subMonth()->month),
+                'category_breakdown' => $this->getCategoryBreakdown($user, $year, $month),
+                'weekly_trend'       => $this->getWeeklyTrend($user),
+                'top_categories'     => $this->getTopCategories($user, $year, $month),
+            ];
+        });
+    }
+
+    public static function cacheKey(int $userId): string
+    {
+        return "dashboard-summary:user:{$userId}";
     }
 
     private function getMonthSummary(User $user, int $year, int $month): array
