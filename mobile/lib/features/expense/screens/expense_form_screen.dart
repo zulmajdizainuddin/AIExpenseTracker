@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../core/errors/failure.dart';
 import '../providers/expense_provider.dart';
 
 class ExpenseFormScreen extends ConsumerStatefulWidget {
@@ -20,6 +21,7 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
 
   int? _selectedCategoryId;
   DateTime _selectedDate = DateTime.now();
+  Map<String, String> _fieldErrors = {};
 
   bool get _isEditing => widget.expenseId != null;
 
@@ -50,6 +52,8 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
       return;
     }
 
+    setState(() => _fieldErrors = {});
+
     await ref.read(createExpenseProvider.notifier).create(
           categoryId:      _selectedCategoryId!,
           title:           _titleCtrl.text.trim(),
@@ -62,9 +66,16 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
     if (!mounted) return;
 
     if (state.hasError) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to save expense.')),
-      );
+      final error = state.error;
+      if (error is ValidationFailure && (error.errors?.isNotEmpty ?? false)) {
+        setState(() {
+          _fieldErrors = error.errors!.map((field, messages) => MapEntry(field, messages.first));
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to save expense.')),
+        );
+      }
     } else {
       context.pop();
     }
@@ -87,9 +98,10 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
             children: [
               TextFormField(
                 controller: _titleCtrl,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Title',
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
+                  errorText: _fieldErrors['title'],
                 ),
                 validator: (v) => (v == null || v.trim().isEmpty) ? 'Title is required.' : null,
               ),
@@ -97,10 +109,11 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
               TextFormField(
                 controller: _amountCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Amount (RM)',
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
                   prefixText: 'RM ',
+                  errorText: _fieldErrors['amount'],
                 ),
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Amount is required.';
@@ -115,9 +128,10 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
                 error: (_, __) => const Text('Could not load categories.'),
                 data: (cats) => DropdownButtonFormField<int>(
                   value: _selectedCategoryId,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Category',
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
+                    errorText: _fieldErrors['category_id'],
                   ),
                   items: cats.map((c) => DropdownMenuItem(
                         value: c.id,
@@ -130,20 +144,33 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
               ListTile(
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(4),
-                  side: BorderSide(color: Theme.of(context).colorScheme.outline),
+                  side: BorderSide(
+                    color: _fieldErrors['transaction_date'] != null
+                        ? Theme.of(context).colorScheme.error
+                        : Theme.of(context).colorScheme.outline,
+                  ),
                 ),
                 title: const Text('Date'),
                 subtitle: Text(DateFormat('dd MMMM yyyy').format(_selectedDate)),
                 trailing: const Icon(Icons.calendar_today),
                 onTap: _pickDate,
               ),
+              if (_fieldErrors['transaction_date'] != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, left: 12),
+                  child: Text(
+                    _fieldErrors['transaction_date']!,
+                    style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
+                  ),
+                ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _noteCtrl,
                 maxLines: 3,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Note (optional)',
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
+                  errorText: _fieldErrors['note'],
                 ),
               ),
               const SizedBox(height: 24),
