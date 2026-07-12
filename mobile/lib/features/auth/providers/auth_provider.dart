@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/network/dio_client.dart';
 import '../data/auth_service.dart';
 import '../models/user_model.dart';
 
@@ -12,6 +13,8 @@ final authStateProvider = AsyncNotifierProvider<AuthNotifier, UserModel?>(AuthNo
 class AuthNotifier extends AsyncNotifier<UserModel?> {
   @override
   Future<UserModel?> build() async {
+    ref.read(dioClientProvider).onUnauthorized = forceLogout;
+
     final storage  = ref.read(_storageProvider);
     final userJson = await storage.read(key: AppConstants.userKey);
 
@@ -67,6 +70,20 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
     final storage = ref.read(_storageProvider);
 
     await service.logout().catchError((_) {});
+
+    await Future.wait([
+      storage.delete(key: AppConstants.tokenKey),
+      storage.delete(key: AppConstants.userKey),
+    ]);
+
+    state = const AsyncData(null);
+  }
+
+  /// Drops the local session without calling the backend logout endpoint,
+  /// since this is triggered by a 401 — the token that caused it is already
+  /// invalid/expired, so there's nothing valid left to revoke server-side.
+  Future<void> forceLogout() async {
+    final storage = ref.read(_storageProvider);
 
     await Future.wait([
       storage.delete(key: AppConstants.tokenKey),

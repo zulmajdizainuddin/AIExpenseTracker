@@ -17,11 +17,15 @@ class DioClient {
       headers: {'Accept': 'application/json'},
     ));
 
-    _dio.interceptors.add(_AuthInterceptor(_storage, _dio));
+    _dio.interceptors.add(_AuthInterceptor(_storage, _dio, () => onUnauthorized?.call()));
   }
 
   late final Dio _dio;
   final FlutterSecureStorage _storage;
+
+  /// Called when a request comes back 401, so the caller can drop the
+  /// session (the token that triggered this is already invalid/expired).
+  void Function()? onUnauthorized;
 
   Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) =>
       _dio.get(path, queryParameters: queryParameters);
@@ -36,9 +40,10 @@ class DioClient {
 }
 
 class _AuthInterceptor extends Interceptor {
-  _AuthInterceptor(this._storage, Dio dio);
+  _AuthInterceptor(this._storage, Dio dio, this._onUnauthorized);
 
   final FlutterSecureStorage _storage;
+  final void Function() _onUnauthorized;
 
   @override
   Future<void> onRequest(
@@ -56,6 +61,7 @@ class _AuthInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) {
     switch (err.response?.statusCode) {
       case 401:
+        _onUnauthorized();
         handler.reject(DioException(
           requestOptions: err.requestOptions,
           error: const AuthFailure(),
