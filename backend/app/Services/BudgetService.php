@@ -6,7 +6,6 @@ use App\Models\Budget;
 use App\Models\User;
 use App\Repositories\Contracts\BudgetRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class BudgetService
 {
@@ -29,9 +28,8 @@ class BudgetService
         ]);
     }
 
-    public function delete(User $user, int $budgetId): void
+    public function delete(Budget $budget): void
     {
-        $budget = $this->findOwnedByUser($user, $budgetId);
         $this->budgetRepository->delete($budget);
     }
 
@@ -54,16 +52,5 @@ class BudgetService
                     : 0,
             ];
         })->toArray();
-    }
-
-    private function findOwnedByUser(User $user, int $budgetId): Budget
-    {
-        $budget = $this->budgetRepository->findById($budgetId);
-
-        if (! $budget || $budget->user_id !== $user->id) {
-            throw new ModelNotFoundException('Budget not found.');
-        }
-
-        return $budget;
     }
 }

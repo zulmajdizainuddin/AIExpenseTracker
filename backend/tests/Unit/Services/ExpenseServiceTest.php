@@ -7,7 +7,6 @@ use App\Models\Expense;
 use App\Models\User;
 use App\Repositories\Contracts\ExpenseRepositoryInterface;
 use App\Services\ExpenseService;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Mockery;
 use Tests\TestCase;
 
@@ -55,32 +54,13 @@ class ExpenseServiceTest extends TestCase
         $this->assertEquals('Lunch', $result->title);
     }
 
-    public function test_delete_expense_throws_if_not_owned(): void
+    public function test_delete_expense_calls_repository(): void
     {
-        $user = User::factory()->make(['id' => 1]);
+        $expense = Expense::factory()->make(['id' => 5, 'user_id' => 1, 'category_id' => 2]);
 
-        $expense = Expense::factory()->make(['id' => 5, 'user_id' => 99]);
-
-        $this->repository
-            ->shouldReceive('findById')
-            ->with(5)
-            ->andReturn($expense);
-
-        $this->expectException(ModelNotFoundException::class);
-
-        $this->service->delete($user, 5);
-    }
-
-    public function test_delete_expense_succeeds_for_owner(): void
-    {
-        $user = User::factory()->make(['id' => 1]);
-
-        $expense = Expense::factory()->make(['id' => 5, 'user_id' => 1]);
-
-        $this->repository->shouldReceive('findById')->with(5)->andReturn($expense);
         $this->repository->shouldReceive('delete')->with($expense)->once();
 
-        $this->service->delete($user, 5);
+        $this->service->delete($expense);
 
         $this->assertTrue(true); // no exception = pass
     }

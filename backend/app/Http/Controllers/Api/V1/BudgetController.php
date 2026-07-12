@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Budget\StoreBudgetRequest;
+use App\Models\Budget;
 use App\Services\BudgetService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -34,7 +35,10 @@ class BudgetController extends Controller
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        $this->budgetService->delete($request->user(), $id);
+        $budget = Budget::findOrFail($id);
+        $this->authorize('delete', $budget);
+
+        $this->budgetService->delete($budget);
 
         return $this->success(null, 'Budget deleted.');
     }

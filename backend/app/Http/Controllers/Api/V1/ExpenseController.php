@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Expense\StoreExpenseRequest;
 use App\Http\Requests\Expense\UpdateExpenseRequest;
+use App\Models\Expense;
 use App\Services\ExpenseService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -34,21 +35,28 @@ class ExpenseController extends Controller
 
     public function show(Request $request, int $id): JsonResponse
     {
-        $expense = $this->expenseService->show($request->user(), $id);
+        $expense = Expense::findOrFail($id);
+        $this->authorize('view', $expense);
 
-        return $this->success($expense);
+        return $this->success($this->expenseService->show($expense));
     }
 
     public function update(UpdateExpenseRequest $request, int $id): JsonResponse
     {
-        $expense = $this->expenseService->update($request->user(), $id, $request->validated());
+        $expense = Expense::findOrFail($id);
+        $this->authorize('update', $expense);
+
+        $expense = $this->expenseService->update($expense, $request->validated());
 
         return $this->success($expense, 'Expense updated.');
     }
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        $this->expenseService->delete($request->user(), $id);
+        $expense = Expense::findOrFail($id);
+        $this->authorize('delete', $expense);
+
+        $this->expenseService->delete($expense);
 
         return $this->success(null, 'Expense deleted.');
     }
