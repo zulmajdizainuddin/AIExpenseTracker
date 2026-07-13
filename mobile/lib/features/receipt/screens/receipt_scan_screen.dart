@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/utils/responsive.dart';
 import '../providers/receipt_provider.dart';
 
 class ReceiptScanScreen extends ConsumerStatefulWidget {
@@ -38,114 +40,137 @@ class _ReceiptScanScreenState extends ConsumerState<ReceiptScanScreen> {
   @override
   Widget build(BuildContext context) {
     final scanState = ref.watch(scanReceiptProvider);
+    final scheme     = Theme.of(context).colorScheme;
     final currency  = NumberFormat.currency(locale: 'en_MY', symbol: 'RM ');
 
     return Scaffold(
       appBar: AppBar(title: const Text('Scan Receipt')),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Image preview
-            GestureDetector(
-              onTap: () => _showImageSourceSheet(context),
-              child: Container(
-                height: 300,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Theme.of(context).colorScheme.outline),
+        padding: EdgeInsets.all(context.contentPadding),
+        child: ContentWidthLimiter(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Column(
+              children: [
+                // Image preview
+                GestureDetector(
+                  onTap: () => _showImageSourceSheet(context),
+                  child: Container(
+                    height: 280,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      border: Border.all(color: scheme.outlineVariant.withOpacity(0.6)),
+                    ),
+                    child: _selectedImage != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(AppRadius.lg),
+                            child: Image.file(_selectedImage!, fit: BoxFit.cover, width: double.infinity),
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(AppSpacing.lg),
+                                decoration: BoxDecoration(color: scheme.primaryContainer.withOpacity(0.5), shape: BoxShape.circle),
+                                child: Icon(Icons.document_scanner_outlined, size: 36, color: scheme.primary),
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+                              Text('Tap to select receipt image', style: TextStyle(color: scheme.onSurfaceVariant)),
+                            ],
+                          ),
+                  ),
                 ),
-                child: _selectedImage != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(_selectedImage!, fit: BoxFit.cover),
-                      )
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                const SizedBox(height: AppSpacing.lg),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _pickImage(ImageSource.camera),
+                        icon: const Icon(Icons.camera_alt_outlined),
+                        label: const Text('Camera'),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _pickImage(ImageSource.gallery),
+                        icon: const Icon(Icons.photo_library_outlined),
+                        label: const Text('Gallery'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: (_selectedImage == null || scanState.isLoading) ? null : _scan,
+                    icon: scanState.isLoading
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.auto_awesome_rounded),
+                    label: Text(scanState.isLoading ? 'Scanning...' : 'Scan with AI'),
+                  ),
+                ),
+                // Results
+                if (scanState.hasError) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    decoration: BoxDecoration(
+                      color: scheme.errorContainer,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error_outline_rounded, color: scheme.onErrorContainer),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            'Scan failed. Please try again.',
+                            style: TextStyle(color: scheme.onErrorContainer, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                if (scanState.hasValue && scanState.value != null) ...[
+                  const SizedBox(height: AppSpacing.xl),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('AI Extracted Data', style: Theme.of(context).textTheme.titleMedium),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: Column(
                         children: [
-                          Icon(Icons.document_scanner_outlined, size: 64,
-                              color: Theme.of(context).colorScheme.primary),
-                          const SizedBox(height: 12),
-                          const Text('Tap to select receipt image'),
+                          _ResultRow(Icons.storefront_outlined,  'Merchant', scanState.value!.aiData.merchantName ?? 'Unknown'),
+                          _ResultRow(Icons.payments_outlined,    'Amount',   scanState.value!.aiData.amount != null
+                              ? currency.format(scanState.value!.aiData.amount)
+                              : 'Not detected'),
+                          _ResultRow(Icons.event_outlined,       'Date',     scanState.value!.aiData.date ?? 'Not detected'),
+                          _ResultRow(Icons.category_outlined,    'Category', scanState.value!.aiData.categorySuggestion ?? 'Other', isLast: true),
                         ],
                       ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _pickImage(ImageSource.camera),
-                    icon: const Icon(Icons.camera_alt),
-                    label: const Text('Camera'),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _pickImage(ImageSource.gallery),
-                    icon: const Icon(Icons.photo_library),
-                    label: const Text('Gallery'),
+                  const SizedBox(height: AppSpacing.lg),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => context.push('/expenses/new', extra: scanState.value!.aiData),
+                      child: const Text('Create Expense from Receipt'),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: (_selectedImage == null || scanState.isLoading) ? null : _scan,
-                icon: scanState.isLoading
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.auto_awesome),
-                label: Text(scanState.isLoading ? 'Scanning...' : 'Scan with AI'),
-              ),
-            ),
-            // Results
-            if (scanState.hasError) ...[
-              const SizedBox(height: 16),
-              Card(
-                color: Theme.of(context).colorScheme.errorContainer,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    'Scan failed. Please try again.',
-                    style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
-                  ),
-                ),
-              ),
-            ],
-            if (scanState.hasValue && scanState.value != null) ...[
-              const SizedBox(height: 20),
-              Text('AI Extracted Data', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 12),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      _ResultRow('Merchant',  scanState.value!.aiData.merchantName ?? 'Unknown'),
-                      _ResultRow('Amount',    scanState.value!.aiData.amount != null
-                          ? currency.format(scanState.value!.aiData.amount)
-                          : 'Not detected'),
-                      _ResultRow('Date',      scanState.value!.aiData.date ?? 'Not detected'),
-                      _ResultRow('Category',  scanState.value!.aiData.categorySuggestion ?? 'Other'),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () => context.push('/expenses/new', extra: scanState.value!.aiData),
-                  child: const Text('Create Expense from Receipt'),
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
@@ -158,16 +183,18 @@ class _ReceiptScanScreenState extends ConsumerState<ReceiptScanScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const SizedBox(height: AppSpacing.sm),
             ListTile(
-              leading: const Icon(Icons.camera_alt),
+              leading: const Icon(Icons.camera_alt_outlined),
               title: const Text('Take Photo'),
               onTap: () { Navigator.pop(context); _pickImage(ImageSource.camera); },
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library),
+              leading: const Icon(Icons.photo_library_outlined),
               title: const Text('Choose from Gallery'),
               onTap: () { Navigator.pop(context); _pickImage(ImageSource.gallery); },
             ),
+            const SizedBox(height: AppSpacing.sm),
           ],
         ),
       ),
@@ -176,18 +203,25 @@ class _ReceiptScanScreenState extends ConsumerState<ReceiptScanScreen> {
 }
 
 class _ResultRow extends StatelessWidget {
-  const _ResultRow(this.label, this.value);
+  const _ResultRow(this.icon, this.label, this.value, {this.isLast = false});
+  final IconData icon;
   final String label, value;
+  final bool isLast;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.outline)),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
-          ],
-        ),
-      );
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.md),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: scheme.onSurfaceVariant),
+          const SizedBox(width: AppSpacing.sm),
+          Text(label, style: TextStyle(color: scheme.onSurfaceVariant)),
+          const Spacer(),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+  }
 }
