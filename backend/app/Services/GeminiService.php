@@ -9,7 +9,7 @@ use RuntimeException;
 
 class GeminiService
 {
-    private const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    private const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent';
 
     private const RECEIPT_PROMPT = <<<'PROMPT'
         You are a receipt parser. Extract the following fields from the receipt image:
@@ -45,7 +45,7 @@ class GeminiService
             ]],
             'generationConfig' => [
                 'temperature'     => 0.1,
-                'maxOutputTokens' => 256,
+                'maxOutputTokens' => 1024,
             ],
         ]);
 

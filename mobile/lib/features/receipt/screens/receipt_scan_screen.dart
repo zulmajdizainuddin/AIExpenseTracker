@@ -140,7 +140,7 @@ class _ReceiptScanScreenState extends ConsumerState<ReceiptScanScreen> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: () => context.push('/expenses/new'),
+                  onPressed: () => context.push('/expenses/new', extra: scanState.value!.aiData),
                   child: const Text('Create Expense from Receipt'),
                 ),
               ),

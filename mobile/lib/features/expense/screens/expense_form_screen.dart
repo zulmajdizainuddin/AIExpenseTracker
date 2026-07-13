@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/errors/failure.dart';
+import '../../receipt/models/receipt_model.dart';
 import '../providers/expense_provider.dart';
 
 class ExpenseFormScreen extends ConsumerStatefulWidget {
-  const ExpenseFormScreen({super.key, this.expenseId});
+  const ExpenseFormScreen({super.key, this.expenseId, this.initialData});
   final int? expenseId;
+  final AiReceiptData? initialData;
 
   @override
   ConsumerState<ExpenseFormScreen> createState() => _ExpenseFormScreenState();
@@ -24,6 +26,19 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
   Map<String, String> _fieldErrors = {};
 
   bool get _isEditing => widget.expenseId != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final data = widget.initialData;
+    if (data == null) return;
+
+    if (data.merchantName != null) _titleCtrl.text = data.merchantName!;
+    if (data.amount != null) _amountCtrl.text = data.amount!.toString();
+    if (data.date != null) {
+      _selectedDate = DateTime.tryParse(data.date!) ?? DateTime.now();
+    }
+  }
 
   @override
   void dispose() {
@@ -85,6 +100,20 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
   Widget build(BuildContext context) {
     final categories = ref.watch(categoriesProvider);
     final isLoading  = ref.watch(createExpenseProvider).isLoading;
+
+    final suggestion = widget.initialData?.categorySuggestion;
+    if (suggestion != null && _selectedCategoryId == null) {
+      final cats = categories.valueOrNull;
+      final match = cats?.where((c) => c.name.toLowerCase() == suggestion.toLowerCase());
+      if (match != null && match.isNotEmpty) {
+        final matchedId = match.first.id;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _selectedCategoryId == null) {
+            setState(() => _selectedCategoryId = matchedId);
+          }
+        });
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(
