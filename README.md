@@ -1,64 +1,57 @@
 # AI Expense Tracker + Receipt Scanner
 
-A production-grade full-stack mobile application built with Flutter and Laravel 12, designed to demonstrate real-world software engineering practices including AI integration, secure API design, and scalable architecture.
+A full-stack expense tracking app built with Flutter and Laravel 12 — track expenses, scan receipts with Gemini AI, set category budgets, and view spending analytics.
 
 ---
 
-# Overview
+## Overview
 
 AI Expense Tracker helps users manage personal finances by:
 
-* Tracking expenses
-* Scanning receipts using AI
-* Categorizing transactions automatically
-* Providing spending analytics and insights
-
-This project is built with production-level architecture, security, and scalability in mind.
+* Tracking expenses with category-based filtering and search
+* Scanning receipts and auto-extracting merchant/amount/date/category via Gemini AI
+* Setting monthly budgets per category with real-time spend tracking
+* Viewing spending analytics on a dashboard (trend chart, category breakdown)
 
 ---
 
-# Tech Stack
+## Tech Stack
 
-## Frontend
+### Frontend
 
 * Flutter
-* Riverpod
-* Dio
-* GoRouter
-* fl_chart
+* Riverpod (state management)
+* Dio (HTTP client)
+* GoRouter (navigation)
+* fl_chart (charts)
 
-## Backend
+### Backend
 
 * Laravel 12
-* Laravel Sanctum
-* REST API
+* Laravel Sanctum (token auth)
 * Eloquent ORM
-* Service Layer Architecture
+* Service / Repository layer architecture
 
-## Database
+### Database
 
-* MySQL
+* MySQL (or SQLite for a quick local setup — see [backend/README.md](backend/README.md))
 
-## AI
+### AI
 
-* Google Gemini API
+* Google Gemini API (receipt parsing)
 
 ---
 
-# Architecture
+## Architecture
 
-## Mobile App
+### Mobile App
 
 Feature-first structure:
 
-```text id="flutter2"
+```text
 lib/
-├── core
-├── config
-├── models
-├── repositories
-├── services
-├── providers
+├── core         # shared: network client, theme, widgets, utils
+├── config       # theme, router
 ├── features
 │   ├── auth
 │   ├── dashboard
@@ -69,131 +62,116 @@ lib/
 └── main.dart
 ```
 
----
+### Backend
 
-## Backend
-
-```text id="laravel2"
+```text
 app/
-├── Http/
+├── Http/          # Controllers, Requests, Middleware
 ├── Models/
-├── Services/
-├── Repositories/
-├── Policies/
+├── Services/       # business logic
+├── Repositories/    # data access
+├── Policies/        # per-resource ownership authorization
 └── Exceptions/
 ```
 
 ---
 
-# Key Features
+## Key Features
 
-## Authentication
+**Authentication** — register, login, logout, profile.
 
-* Register
-* Login
-* Logout
-* Profile management
+**Expense Management** — create / update / delete expenses, search and filter, category-based tracking.
 
----
+**Budget System** — monthly budget per category with real-time spend/remaining tracking.
 
-## Expense Management
+**AI Receipt Scanner** — upload a receipt image, extract structured data (merchant, amount, date, suggested category) via Gemini, use it to pre-fill a new expense.
 
-* Create / update / delete expenses
-* Search and filter expenses
-* Category-based tracking
+**Dashboard** — monthly summary vs. last month, weekly spending trend chart, category breakdown.
 
 ---
 
-## Budget System
+## Security
 
-* Monthly budget per category
-* Real-time tracking
-
----
-
-## AI Receipt Scanner
-
-* Upload receipt image
-* Extract data using Gemini AI
-* Store structured expense data
+* Laravel Sanctum token authentication
+* Ownership-based authorization via Policies (a user can only view/edit/delete their own expenses and budgets)
+* Per-endpoint API rate limiting (tighter limits on writes than reads)
+* Secure file upload validation for receipt images (mime type, size, private storage disk, randomized filenames)
+* Gemini API key never leaves the backend — the mobile app never talks to Gemini directly
 
 ---
 
-## Dashboard
+## API Overview
 
-* Monthly analytics
-* Category breakdown
-* Visual charts
+Base URL: `/api/v1`
+
+| Endpoint | Description |
+|---|---|
+| `POST /auth/register`, `/auth/login`, `/auth/logout` | Authentication |
+| `GET /auth/profile` | Current user |
+| `GET/POST/PUT/DELETE /expenses` | Expense CRUD, search, filter |
+| `GET/POST/DELETE /budgets` | Budget CRUD |
+| `GET /dashboard` | Monthly summary, trend, category breakdown |
+| `GET /categories` | Category list |
+| `POST /receipts/scan` | Upload + AI-parse a receipt image |
+
+Full request/response details: [docs/API_DESIGN.md](docs/API_DESIGN.md). Database schema: [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md).
 
 ---
 
-# Security Highlights
+## Getting Started
 
-* Laravel Sanctum authentication
-* Role-based access via Policies
-* API rate limiting
-* Secure file upload validation
-* Environment variable protection
-* Backend-only AI integration (secure API key handling)
+Each subproject has its own setup guide with full details:
 
----
+* **Backend** (Laravel API): [backend/README.md](backend/README.md)
+* **Mobile** (Flutter app): [mobile/README.md](mobile/README.md)
 
-# API Overview
+Quick version:
 
-Base URL:
+```bash
+# Backend
+cd backend
+composer install
+cp .env.example .env
+php artisan key:generate
+# set GEMINI_API_KEY and your DB connection in .env, then:
+php artisan migrate
+php artisan serve
 
+# Mobile (in a separate terminal)
+cd mobile
+flutter pub get
+flutter run
 ```
-/api/v1
-```
-
-Endpoints:
-
-* /auth/register
-* /auth/login
-* /auth/logout
-* /expenses
-* /budgets
-* /dashboard
-* /receipts/scan
 
 ---
 
-# Testing
+## Testing
 
-* PHPUnit (backend)
-* flutter_test (frontend)
-
----
-
-# CI/CD
-
-* GitHub Actions
-
-  * Run backend tests
-  * Run frontend tests
-  * Lint checks
+* **Backend**: PHPUnit — `php artisan test` (auth flow and service-layer coverage; still growing)
+* **Mobile**: `flutter test` — widget tests are written ad hoc alongside features rather than kept as a standing suite
 
 ---
 
-# Future Improvements
+## CI/CD
 
-* Docker support
+GitHub Actions runs on every push/PR touching each subproject:
+
+* **Backend CI**: PHPUnit tests, Pint code style check
+* **Mobile CI**: `flutter analyze`, `flutter test`, debug APK build on `develop`
+
+---
+
+## Documentation
+
+* [docs/API_DESIGN.md](docs/API_DESIGN.md) — full API request/response reference
+* [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) — schema design and rationale
+
+---
+
+## Future Improvements
+
 * Offline mode
 * Push notifications
 * PDF export
 * AI spending prediction
-* Multi-device sync
-
----
-
-# Project Philosophy
-
-This project follows real software engineering principles:
-
-* Clean Architecture
-* Secure-by-design approach
-* Scalable backend structure
-* Maintainable frontend architecture
-* Production-ready coding standards
-
-This is not a student CRUD project — it is designed to reflect junior software engineer capability.
+* Editable profile (currency/timezone), password reset flow
