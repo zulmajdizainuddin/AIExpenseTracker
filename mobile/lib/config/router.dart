@@ -8,6 +8,7 @@ import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/expense/screens/expense_list_screen.dart';
 import '../features/expense/screens/expense_form_screen.dart';
 import '../features/budget/screens/budget_screen.dart';
+import '../features/receipt/models/receipt_model.dart';
 import '../features/receipt/screens/receipt_scan_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
 
@@ -34,7 +35,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/expenses',  builder: (_, __) => const ExpenseListScreen()),
           GoRoute(
             path: '/expenses/new',
-            builder: (_, __) => const ExpenseFormScreen(),
+            builder: (_, state) => ExpenseFormScreen(
+              initialData: state.extra as AiReceiptData?,
+            ),
           ),
           GoRoute(
             path: '/expenses/:id/edit',
