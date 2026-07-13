@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../core/utils/responsive.dart';
 import '../features/auth/providers/auth_provider.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
@@ -54,36 +55,17 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
+const _destinations = [
+  (icon: Icons.home_outlined,     selectedIcon: Icons.home,                        label: 'Home',     path: '/dashboard'),
+  (icon: Icons.receipt_outlined,  selectedIcon: Icons.receipt,                     label: 'Expenses',  path: '/expenses'),
+  (icon: Icons.document_scanner_outlined, selectedIcon: Icons.document_scanner,    label: 'Scan',      path: '/receipt/scan'),
+  (icon: Icons.account_balance_wallet_outlined, selectedIcon: Icons.account_balance_wallet, label: 'Budget', path: '/budgets'),
+  (icon: Icons.person_outlined,   selectedIcon: Icons.person,                      label: 'Profile',   path: '/profile'),
+];
+
 class AppShell extends StatelessWidget {
   const AppShell({super.key, required this.child});
   final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: _BottomNav(),
-    );
-  }
-}
-
-class _BottomNav extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final location = GoRouterState.of(context).matchedLocation;
-
-    return NavigationBar(
-      selectedIndex: _indexFromRoute(location),
-      onDestinationSelected: (i) => _navigate(context, i),
-      destinations: const [
-        NavigationDestination(icon: Icon(Icons.home_outlined),     selectedIcon: Icon(Icons.home),        label: 'Home'),
-        NavigationDestination(icon: Icon(Icons.receipt_outlined),  selectedIcon: Icon(Icons.receipt),     label: 'Expenses'),
-        NavigationDestination(icon: Icon(Icons.document_scanner_outlined), selectedIcon: Icon(Icons.document_scanner), label: 'Scan'),
-        NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet), label: 'Budget'),
-        NavigationDestination(icon: Icon(Icons.person_outlined),   selectedIcon: Icon(Icons.person),      label: 'Profile'),
-      ],
-    );
-  }
 
   int _indexFromRoute(String location) {
     if (location.startsWith('/expenses')) return 1;
@@ -93,13 +75,51 @@ class _BottomNav extends StatelessWidget {
     return 0;
   }
 
-  void _navigate(BuildContext context, int index) {
-    switch (index) {
-      case 0: context.go('/dashboard');
-      case 1: context.go('/expenses');
-      case 2: context.go('/receipt/scan');
-      case 3: context.go('/budgets');
-      case 4: context.go('/profile');
+  void _navigate(BuildContext context, int index) => context.go(_destinations[index].path);
+
+  @override
+  Widget build(BuildContext context) {
+    final location = GoRouterState.of(context).matchedLocation;
+    final selectedIndex = _indexFromRoute(location);
+
+    // Wide screens (tablets, foldables, desktop) get a persistent side rail
+    // instead of a bottom bar squished under a large logical width.
+    if (context.isExpanded) {
+      return Scaffold(
+        body: Row(
+          children: [
+            NavigationRail(
+              selectedIndex: selectedIndex,
+              onDestinationSelected: (i) => _navigate(context, i),
+              labelType: NavigationRailLabelType.all,
+              destinations: _destinations
+                  .map((d) => NavigationRailDestination(
+                        icon: Icon(d.icon),
+                        selectedIcon: Icon(d.selectedIcon),
+                        label: Text(d.label),
+                      ))
+                  .toList(),
+            ),
+            const VerticalDivider(width: 1),
+            Expanded(child: child),
+          ],
+        ),
+      );
     }
+
+    return Scaffold(
+      body: child,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: selectedIndex,
+        onDestinationSelected: (i) => _navigate(context, i),
+        destinations: _destinations
+            .map((d) => NavigationDestination(
+                  icon: Icon(d.icon),
+                  selectedIcon: Icon(d.selectedIcon),
+                  label: d.label,
+                ))
+            .toList(),
+      ),
+    );
   }
 }
